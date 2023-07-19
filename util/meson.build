@@ -58,6 +58,14 @@ util_ss.add(files('yank.c'))
 util_ss.add(files('int128.c'))
 util_ss.add(files('memalign.c'))
 
+util_ss.add(files('kv_utils.c'))
+util_ss.add(files('kv_store.c'))
+util_ss.add(files('kv-tasks.c'))
+util_ss.add(files('select-results.c'))
+
+duckdb = cc.find_library('duckdb', dirs: [meson.source_root() + '/duckdb'], required: true)
+util_ss.add(when: duckdb, if_true: files('query.c'))
+
 if have_user
   util_ss.add(files('selfmap.c'))
 endif

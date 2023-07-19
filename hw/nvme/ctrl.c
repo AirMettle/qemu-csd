@@ -2,8 +2,11 @@
  * QEMU NVM Express Controller
  *
  * Copyright (c) 2012, Intel Corporation
+ * Copyright (C) 2023 AirMettle, Inc.
  *
- * Written by Keith Busch <keith.busch@intel.com>
+ * Authors:
+ *  Keith Busch <keith.busch@intel.com>
+ *  Chia-Lin Wu <cwu@airmettle.com>
  *
  * This code is licensed under the GNU GPL v2 or later.
  */
@@ -238,6 +241,7 @@ static const bool nvme_feature_support[NVME_FID_MAX] = {
     [NVME_TIMESTAMP]                = true,
     [NVME_HOST_BEHAVIOR_SUPPORT]    = true,
     [NVME_COMMAND_SET_PROFILE]      = true,
+    [NVME_KV_SUPPORT]               = true,
 };
 
 static const uint32_t nvme_feature_cap[NVME_FID_MAX] = {
@@ -279,6 +283,13 @@ static const uint32_t nvme_cse_iocs_nvm[256] = {
     [NVME_CMD_VERIFY]               = NVME_CMD_EFF_CSUPP,
     [NVME_CMD_COPY]                 = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
     [NVME_CMD_COMPARE]              = NVME_CMD_EFF_CSUPP,
+    [NVME_CMD_KV_LIST]              = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_CMD_KV_EXIST]             = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_CMD_KV_DELETE]            = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_CMD_KV_STORE]             = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_CMD_KV_RETRIEVE]          = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_CMD_KV_SEND_SELECT]       = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_CMD_KV_RETRIEVE_SELECT]   = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC
 };
 
 static const uint32_t nvme_cse_iocs_zoned[256] = {
@@ -1399,7 +1410,7 @@ static void nvme_post_cqes(void *opaque)
     }
 }
 
-static void nvme_enqueue_req_completion(NvmeCQueue *cq, NvmeRequest *req)
+void nvme_enqueue_req_completion(NvmeCQueue *cq, NvmeRequest *req)
 {
     assert(cq->cqid == req->sq->cqid);
     trace_pci_nvme_enqueue_req_completion(nvme_cid(req), cq->cqid,
@@ -4162,6 +4173,14 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
         return nvme_zone_mgmt_send(n, req);
     case NVME_CMD_ZONE_MGMT_RECV:
         return nvme_zone_mgmt_recv(n, req);
+    case NVME_CMD_KV_LIST:
+    case NVME_CMD_KV_EXIST:
+    case NVME_CMD_KV_STORE:
+    case NVME_CMD_KV_RETRIEVE:
+    case NVME_CMD_KV_SEND_SELECT:
+    case NVME_CMD_KV_RETRIEVE_SELECT:
+    case NVME_CMD_KV_DELETE:
+         return nvme_kv_process(n, req);
     default:
         assert(false);
     }
@@ -5260,6 +5279,10 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
     }
 
     switch (fid) {
+    case NVME_KV_SUPPORT:
+        result = NVME_KV_SUPPORT_STORAGE | NVME_KV_SUPPORT_QUERY;
+        goto out;
+
     case NVME_TEMPERATURE_THRESHOLD:
         result = 0;
 
@@ -5322,6 +5345,9 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
 
 defaults:
     switch (fid) {
+    case NVME_KV_SUPPORT:
+        result = NVME_KV_SUPPORT_STORAGE | NVME_KV_SUPPORT_QUERY;
+        break;
     case NVME_TEMPERATURE_THRESHOLD:
         result = 0;
 
@@ -6149,6 +6175,7 @@ static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
         return nvme_dbbuf_config(n, req);
     case NVME_ADM_CMD_FORMAT_NVM:
         return nvme_format(n, req);
+
     default:
         assert(false);
     }
@@ -7113,6 +7140,7 @@ static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
 
 static void nvme_init_state(NvmeCtrl *n)
 {
+    nvme_kv_init(n);
     NvmePriCtrlCap *cap = &n->pri_ctrl_cap;
     NvmeSecCtrlList *list = &n->sec_ctrl_list;
     NvmeSecCtrlEntry *sctrl;

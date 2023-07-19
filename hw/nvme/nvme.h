@@ -4,6 +4,7 @@
  * Copyright (c) 2012 Intel Corporation
  * Copyright (c) 2021 Minwoo Im
  * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ * Copyright (C) 2023 AirMettle, Inc.
  *
  * Authors:
  *   Keith Busch            <kbusch@kernel.org>
@@ -11,6 +12,7 @@
  *   Gollu Appalanaidu      <anaidu.gollu@samsung.com>
  *   Dmitry Fomichev        <dmitry.fomichev@wdc.com>
  *   Minwoo Im              <minwoo.im.dev@gmail.com>
+ *   Chia-Lin Wu            <cwu@airmettle.com>
  *
  * This code is licensed under the GNU GPL v2 or later.
  */
@@ -509,6 +511,7 @@ typedef struct NvmeCtrl {
         uint16_t    vqrfap;
         uint16_t    virfap;
     } next_pri_ctrl_cap;    /* These override pri_ctrl_cap after reset */
+    EventNotifier kv_notifier;
 } NvmeCtrl;
 
 typedef enum NvmeResetType {
@@ -583,5 +586,9 @@ uint16_t nvme_bounce_mdata(NvmeCtrl *n, void *ptr, uint32_t len,
 void nvme_rw_complete_cb(void *opaque, int ret);
 uint16_t nvme_map_dptr(NvmeCtrl *n, NvmeSg *sg, size_t len,
                        NvmeCmd *cmd);
+
+void nvme_enqueue_req_completion(NvmeCQueue *cq, NvmeRequest *req);
+void nvme_kv_init(NvmeCtrl *n);
+uint16_t nvme_kv_process(NvmeCtrl *n, NvmeRequest *req);
 
 #endif /* HW_NVME_NVME_H */
