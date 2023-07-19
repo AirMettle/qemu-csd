@@ -578,6 +578,45 @@ typedef struct QEMU_PACKED NvmeCmd {
     uint32_t    cdw15;
 } NvmeCmd;
 
+typedef struct QEMU_PACKED NvmeKvCmd {
+    uint8_t     opcode;
+    uint8_t     flags;
+    uint16_t    cid;
+    uint32_t    nsid;
+    uint32_t    key_word_1;
+    uint32_t    key_word_2;
+    uint64_t    mptr;
+    NvmeCmdDptr dptr;
+    uint32_t    host_buffer_size;
+    uint32_t    key_length_and_options;
+    uint32_t    read_offset; /* For KV_RETRIEVE and KV_RETRIEVE_SELECT */
+    uint32_t    select_id; /* For NVME_CMD_KV_RETRIEVE_SELECT, this is the id returned by NVME_CMD_KV_SEND_SELECT in cqe result */
+    uint32_t    key_word_3;
+    uint32_t    key_word_4;
+} NvmeKvCmd;
+
+/* bits for key_length_and_store_options */
+#define NVME_KV_GET_CMD_OPTIONS(dw) ((le32_to_cpu(dw) >> 8) & 0xff)
+#define NVME_KV_GET_KEY_LENGTH(dw) (le32_to_cpu(dw) & 0xff)
+#define NVME_STORE_CMD_OPTION_MUST_EXIST(options) (options & 0x01)
+#define NVME_STORE_CMD_OPTION_MUST_NOT_EXIST(options) (options & 0x02)
+#define NVME_STORE_CMD_OPTION_NOT_COMPRESS(options) (options & 0x04)
+/* append is not in kv spec */
+#define NVME_STORE_CMD_OPTION_APPEND(options) (options & 0x08)
+
+/* options of KV_RETRIEVE_SELECT */
+#define NVME_SELECT_CMD_OPTION_DO_NOT_FREE(options) (options & 0x01)
+#define NVME_SELECT_CMD_OPTION_DO_NOT_FREE_IF_NOT_ALL_DATA_FETCHED(options) (options & 0x02)
+
+/* options of KV_SEND_SELECT */
+#define NVME_SELECT_CMD_INPUT_TYPE(dw) ((le32_to_cpu(dw) >> 16) & 0xff)
+#define NVME_SELECT_CMD_OUTPUT_TYPE(dw) ((le32_to_cpu(dw) >> 24) & 0xff)
+#define NVME_SELECT_CMD_OUTPUT_TYPE_USE_CSV_HEADERS_INPUT(options) (options & 0x01)
+#define NVME_SELECT_CMD_OUTPUT_TYPE_USE_CSV_HEADERS_OUTPUT(options) (options & 0x02)
+#define NVME_SELECT_TYPE_CSV 0
+#define NVME_SELECT_TYPE_JSON 1
+#define NVME_SELECT_TYPE_PARQUET 2
+
 #define NVME_CMD_FLAGS_FUSE(flags) (flags & 0x3)
 #define NVME_CMD_FLAGS_PSDT(flags) ((flags >> 6) & 0x3)
 
@@ -599,7 +638,7 @@ enum NvmeAdminCommands {
     NVME_ADM_CMD_DBBUF_CONFIG   = 0x7c,
     NVME_ADM_CMD_FORMAT_NVM     = 0x80,
     NVME_ADM_CMD_SECURITY_SEND  = 0x81,
-    NVME_ADM_CMD_SECURITY_RECV  = 0x82,
+    NVME_ADM_CMD_SECURITY_RECV  = 0x82
 };
 
 enum NvmeIoCommands {
@@ -615,6 +654,19 @@ enum NvmeIoCommands {
     NVME_CMD_ZONE_MGMT_SEND     = 0x79,
     NVME_CMD_ZONE_MGMT_RECV     = 0x7a,
     NVME_CMD_ZONE_APPEND        = 0x7d,
+
+    /* KV commands - these don't exactly match 2.0 spec since we can't use 0x01 and 0x02 */
+    /* write commands need 0x01 set */
+    /* read commands need 0x01 set */
+    NVME_CMD_KV_LIST            = 0x06,
+    NVME_CMD_KV_DELETE          = 0x10,
+    NVME_CMD_KV_EXIST           = 0x14,
+    NVME_CMD_KV_STORE           = 0x81,
+    NVME_CMD_KV_RETRIEVE        = 0x82,
+    /* Send the select command */
+    NVME_CMD_KV_SEND_SELECT     = 0x83,
+    /* Retrieve results from the select */
+    NVME_CMD_KV_RETRIEVE_SELECT = 0x86
 };
 
 typedef struct QEMU_PACKED NvmeDeleteQ {
@@ -931,6 +983,14 @@ enum NvmeStatusCodes {
     NVME_MORE                   = 0x2000,
     NVME_DNR                    = 0x4000,
     NVME_NO_COMPLETE            = 0xffff,
+
+    /* kv errors */
+    NVME_INVALID_VALUE_SIZE     = 0x0085,
+    NVME_INVALID_KV_SIZE        = 0x0086,
+    NVME_KV_NOT_FOUND           = 0x0087,
+    NVME_KV_ERROR               = 0x0088,
+    NVME_KV_EXISTS              = 0x0089,
+    NVME_KV_INVALID_PARAMETER   = 0x0090
 };
 
 typedef struct QEMU_PACKED NvmeFwSlotInfoLog {
@@ -1247,8 +1307,12 @@ enum NvmeFeatureIds {
     NVME_HOST_BEHAVIOR_SUPPORT      = 0x16,
     NVME_COMMAND_SET_PROFILE        = 0x19,
     NVME_SOFTWARE_PROGRESS_MARKER   = 0x80,
+    NVME_KV_SUPPORT                 = 0x20,
     NVME_FID_MAX                    = 0x100,
 };
+
+#define NVME_KV_SUPPORT_STORAGE 0x01
+#define NVME_KV_SUPPORT_QUERY   0x02
 
 typedef enum NvmeFeatureCap {
     NVME_FEAT_CAP_SAVE      = 1 << 0,
