@@ -15,6 +15,14 @@
 
 const char *base_dir = NULL;
 
+void kv_store_init(void) {
+    base_dir = getenv("KV_BASE_DIR");
+    if (!base_dir) {
+        /* use current dir */
+        base_dir = ".";
+    }
+}
+
 void hex(const unsigned char *key, size_t key_len, char *buffer) {
     static const char hexout[] = "0123456789ABCDEF";
     for (size_t i = 0; i < key_len; ++i) {
@@ -27,20 +35,13 @@ void hex(const unsigned char *key, size_t key_len, char *buffer) {
 const char *
 get_path_str(uint32_t bus_number, uint32_t namespace_id, const unsigned char *key, size_t key_len,
              bool create_folder_on_absence) {
-    if (!base_dir) base_dir = getenv("BASE_DIR");
-    if (!base_dir) {
-        fprintf(stderr, "The BASE_DIR environment variable is not set!\n");
-        return NULL;
-    }
     size_t base_dir_len = strlen(base_dir);
     char *path_str = malloc(base_dir_len + 2 + 33 + 33 + 2 * key_len + 1);
     if (!path_str) {
-        fprintf(stderr, "Failed to allocate memory!\n");
         return NULL;
     }
     size_t pos = 0;
-    if (base_dir[0] != '/') path_str[pos++] = '/';
-    strcpy(path_str + pos, base_dir);
+    strcpy(path_str, base_dir);
     pos += strlen(base_dir);
     if (create_folder_on_absence) mkdir(path_str, 0777);
     if (path_str[pos - 1] != '/') {

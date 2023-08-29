@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include "duckdb/duckdb.h"
-#include "kv_utils.h"
+#include "qemu/kv_utils.h"
 #include "qemu/osdep.h"
 #include "qemu/job.h"
 #include <stdatomic.h>
@@ -26,17 +26,14 @@ QemuMutex connection_mutex;
 int query_init_db(int num_connection) {
     num_connections = num_connection;
     if (duckdb_open(NULL, &db) == DuckDBError) {
-        fprintf(stderr, "Cannot open DuckDB!\n");
         return KV_ERROR_DUCKDB;
     }
     cons = malloc(num_connection * sizeof(duckdb_connection));
     if (!cons) {
-        fprintf(stderr, "Cannot allocate memory!\n");
         return KV_ERROR_MEMORY_ALLOCATION;
     }
     for (int i = 0; i < num_connection; ++i) {
         if (duckdb_connect(db, &cons[i]) == DuckDBError) {
-            fprintf(stderr, "Cannot connect DuckDB!\n");
             for (int j = 0; j < i; ++i) {
                 duckdb_disconnect(&cons[j]);
             }
@@ -47,7 +44,6 @@ int query_init_db(int num_connection) {
     }
     busy = malloc(num_connection * sizeof(bool));
     if (!busy) {
-        fprintf(stderr, "Cannot allocate memory!\n");
         for (int i = 0; i < num_connection; ++i) {
             duckdb_disconnect(&cons[i]);
         }

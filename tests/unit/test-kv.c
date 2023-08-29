@@ -14,7 +14,7 @@
 #include <glib/gstdio.h>
 
 static void test_string(void) {
-    setenv("BASE_DIR", "tmp", 1);
+    kv_store_init();
     unsigned char key[4] = "key";
     unsigned char value[12] = "value\nvalue";
     g_assert(store_object(4294967295, 4294967295, key, sizeof(key), value, sizeof(value), false, false, true) ==
@@ -88,7 +88,8 @@ static void test_string(void) {
 }
 
 static void test_binary(void) {
-    setenv("BASE_DIR", "/tmp/", 1);
+    setenv("KV_BASE_DIR", "/tmp/", 1);
+    kv_store_init();
     unsigned char key[6] = {0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6};
     unsigned char value[12] = {0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB,
                                0xEC};
@@ -341,8 +342,8 @@ static void* test_json_with_semicolon(void* arg) {
 }
 
 static void test_serial(void) {
-    setenv("BASE_DIR", "tmp", 1);
-
+    setenv("KV_BASE_DIR", "/tmp", 1);
+    kv_store_init();
     const char *json = "{\"name\":\"Bob\",\"age\":18,\"hobby\":[\"hiking\", \"skiing\"],\"status\":{\"job\": \"student\", \"city\": \"Seattle\"}}";
     g_assert(store_object(4294967295, 4294967295, (unsigned char*)"test.json", sizeof("test.json"), (unsigned char*)json,
                         strlen(json), false, false, false) == (strlen(json)));

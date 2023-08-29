@@ -31,6 +31,13 @@
 #define KV_ERROR_REMOVE (-14)
 #define KV_ERROR_KEY_TOO_LONG (-15)
 
+typedef struct ObjectKey {
+    unsigned char key[16];
+    size_t key_len;
+} ObjectKey;
+
+void kv_store_init(void);
+
 void hex(const unsigned char *key, size_t key_len, char *buffer);
 
 const char *
