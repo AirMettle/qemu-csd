@@ -11,7 +11,7 @@
 
 #include "qemu/select-results.h"
 #include "qemu/kv-tasks.h"
-#include "qemu/kv_store.h"
+#include "qemu/kv_utils.h"
 
 #include "nvme.h"
 

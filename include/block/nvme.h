@@ -657,14 +657,14 @@ enum NvmeIoCommands {
 
     /* KV commands - these don't exactly match 2.0 spec since we can't use 0x01 and 0x02 */
     /* write commands need 0x01 set */
-    /* read commands need 0x01 set */
+    /* read commands need 0x02 set */
     NVME_CMD_KV_LIST            = 0x06,
     NVME_CMD_KV_DELETE          = 0x10,
     NVME_CMD_KV_EXIST           = 0x14,
     NVME_CMD_KV_STORE           = 0x81,
     NVME_CMD_KV_RETRIEVE        = 0x82,
     /* Send the select command */
-    NVME_CMD_KV_SEND_SELECT     = 0x83,
+    NVME_CMD_KV_SEND_SELECT     = 0x85,
     /* Retrieve results from the select */
     NVME_CMD_KV_RETRIEVE_SELECT = 0x86
 };

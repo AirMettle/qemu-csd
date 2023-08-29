@@ -18,56 +18,6 @@
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
-const char *base_dir = NULL;
-
-void kv_store_init(void) {
-    base_dir = getenv("KV_BASE_DIR");
-    if (!base_dir) {
-        /* use current dir */
-        base_dir = ".";
-    }
-}
-
-const char *
-get_path_str(uint32_t bus_number, uint32_t namespace_id, unsigned char *key, size_t key_len,
-             bool create_folder_on_absence);
-const char *
-get_path_str(uint32_t bus_number, uint32_t namespace_id, unsigned char *key, size_t key_len,
-             bool create_folder_on_absence) {
-    size_t base_dir_len = strlen(base_dir);
-    char *path_str = malloc(base_dir_len + 32 + 32 + 2 * key_len + 1);
-    if (!path_str) {
-        fprintf(stderr, "Failed to allocate memory!\n");
-        return NULL;
-    }
-    path_str[0] = '/';
-    size_t pos = 1;
-    strcpy(path_str, base_dir);
-    pos = base_dir_len;
-    if (create_folder_on_absence) mkdir(path_str, 0777);
-    if (path_str[pos - 1] != '/') {
-        path_str[pos] = '/';
-        ++pos;
-    }
-    pos += sprintf(path_str + pos, "%u", bus_number);
-    if (create_folder_on_absence) mkdir(path_str, 0777);
-    path_str[pos] = '/';
-    ++pos;
-    pos += sprintf(path_str + pos, "%u", namespace_id);
-    if (create_folder_on_absence) mkdir(path_str, 0777);
-    path_str[pos] = '/';
-    ++pos;
-    if (key_len) { // get file path
-        static const char hexout[] = "0123456789ABCDEF";
-        for (size_t i = 0; i < key_len; ++i) {
-            unsigned char c = key[i];
-            path_str[pos++] = hexout[c >> 4];
-            path_str[pos++] = hexout[c & 0xF];
-        }
-    } // else get dir path
-    path_str[pos] = '\0';
-    return path_str;
-}
 
 /* returns number of bytes written, -1 on error
 If append is false, create new file overwriting and truncating if one already exists
@@ -80,7 +30,9 @@ ssize_t store_object(uint32_t bus_number, uint32_t namespace_id, unsigned char *
         return KV_ERROR_INVALID_PARAMETER;
     }
     const char *path_str = get_path_str(bus_number, namespace_id, key, key_len, true);
-    if (!path_str) return KV_ERROR_FILE_PATH;
+    if (!path_str) {
+        return KV_ERROR_FILE_PATH;
+    }
     // test the file is already exist for append
     int exist = access(path_str, F_OK);
     if (must_exist && exist == -1) {
@@ -191,7 +143,6 @@ int list_objects(uint32_t bus_number, uint32_t namespace_id, unsigned char *key_
     size_t dir_list_size = 0, dir_list_capacity = 128, max_key_str_len = 2 * 16 + 1;
     char **dir_list = malloc(dir_list_capacity * sizeof(char *));
     if (!dir_list) {
-        fprintf(stderr, "Failed to allocate memory!\n");
         closedir(dir);
         return KV_ERROR_MEMORY_ALLOCATION;
     }
@@ -201,7 +152,6 @@ int list_objects(uint32_t bus_number, uint32_t namespace_id, unsigned char *key_
             dir_list_capacity = MIN(dir_list_capacity * 2, max_to_return + offset);
             char **new_dir_list = realloc(dir_list, dir_list_capacity * sizeof(char *));
             if (!new_dir_list) {
-                fprintf(stderr, "Failed to allocate memory!\n");
                 free(dir_list);
                 closedir(dir);
                 return KV_ERROR_MEMORY_ALLOCATION;
